@@ -1,0 +1,720 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Visa requirements by travel document — U.S., Russian and Israeli</title>
+<style>
+  .viz-root {
+    color-scheme: light;
+    --surface-1:#fcfcfb; --page:#f9f9f7;
+    --text-primary:#0b0b0b; --text-secondary:#52514e; --muted:#898781;
+    --grid:#e1e0d9; --baseline:#c3c2b7; --border:rgba(11,11,11,0.10);
+    --ocean:#f2f1ed;
+    --c-visa_free:#0d366b; --c-eta:#184f95; --c-voa:#256abf;
+    --c-evisa:#3987e5; --c-visa_required:#86b6ef;
+    --c-refused:#d03b3b; --c-unknown:#e1e0d9;
+    --on-ramp-hi:#ffffff; --hatch:rgba(11,11,11,0.16);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) .viz-root { color-scheme: dark;
+      --surface-1:#1a1a19; --page:#0d0d0d;
+      --text-primary:#ffffff; --text-secondary:#c3c2b7; --muted:#898781;
+      --grid:#2c2c2a; --baseline:#383835; --border:rgba(255,255,255,0.10);
+      --ocean:#141413;
+      --c-visa_free:#cde2fb; --c-eta:#9ec5f4; --c-voa:#5598e7;
+      --c-evisa:#256abf; --c-visa_required:#184f95;
+      --c-refused:#d03b3b; --c-unknown:#2c2c2a;
+      --on-ramp-hi:#0b0b0b; --hatch:rgba(255,255,255,0.18);
+    }
+  }
+  :root[data-theme="dark"] .viz-root { color-scheme: dark;
+    --surface-1:#1a1a19; --page:#0d0d0d;
+    --text-primary:#ffffff; --text-secondary:#c3c2b7; --muted:#898781;
+    --grid:#2c2c2a; --baseline:#383835; --border:rgba(255,255,255,0.10);
+    --ocean:#141413;
+    --c-visa_free:#cde2fb; --c-eta:#9ec5f4; --c-voa:#5598e7;
+    --c-evisa:#256abf; --c-visa_required:#184f95;
+    --c-refused:#d03b3b; --c-unknown:#2c2c2a;
+    --on-ramp-hi:#0b0b0b; --hatch:rgba(255,255,255,0.18);
+  }
+
+  * { box-sizing:border-box; }
+  html,body { margin:0; }
+  body { background:var(--page); }
+  .viz-root {
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background:var(--page); color:var(--text-primary);
+    min-height:100vh; padding:24px clamp(12px,3vw,40px) 48px;
+  }
+  .wrap { max-width:1280px; margin:0 auto; }
+
+  header.hd { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:20px; }
+  h1 { font-size:21px; line-height:1.25; margin:0 0 6px; font-weight:650; letter-spacing:-0.01em; }
+  .sub { font-size:13px; color:var(--text-secondary); margin:0; line-height:1.5; }
+  .btn {
+    font:inherit; font-size:12.5px; padding:6px 11px; border-radius:7px; cursor:pointer;
+    background:var(--surface-1); color:var(--text-primary);
+    border:1px solid var(--border);
+  }
+  .btn:hover { background:var(--grid); }
+
+  .controls { display:flex; flex-wrap:wrap; gap:10px 16px; align-items:center; margin-bottom:14px; }
+  .seg { display:inline-flex; background:var(--surface-1); border:1px solid var(--border); border-radius:9px; padding:3px; gap:2px; }
+  .seg button {
+    font:inherit; font-size:12.5px; padding:6px 11px; border:0; border-radius:6px; cursor:pointer;
+    background:transparent; color:var(--text-secondary); white-space:nowrap;
+  }
+  .seg button[aria-pressed="true"] { background:var(--text-primary); color:var(--surface-1); font-weight:550; }
+  .seg button:not([aria-pressed="true"]):hover { background:var(--grid); color:var(--text-primary); }
+
+  .pickers { display:flex; align-items:center; gap:10px; font-size:12.5px; color:var(--text-secondary); }
+  .pickers label { display:inline-flex; align-items:center; gap:5px; cursor:pointer; }
+  .pickers input { accent-color:var(--c-voa); margin:0; }
+  .pickers[hidden] { display:none; }
+  .pickers .sep { width:1px; height:15px; background:var(--border); }
+  label.pickers { cursor:pointer; }
+
+  .search { position:relative; margin-left:auto; }
+  .search input {
+    font:inherit; font-size:12.5px; padding:7px 10px; width:190px; border-radius:7px;
+    border:1px solid var(--border); background:var(--surface-1); color:var(--text-primary);
+  }
+  .search ul {
+    position:absolute; z-index:40; top:calc(100% + 4px); left:0; right:0; margin:0; padding:4px; list-style:none;
+    background:var(--surface-1); border:1px solid var(--border); border-radius:8px; max-height:240px; overflow:auto;
+    box-shadow:0 8px 24px rgba(0,0,0,.14);
+  }
+  .search ul:empty, .search ul[hidden] { display:none; }
+  .search li { padding:6px 8px; border-radius:5px; font-size:12.5px; cursor:pointer; }
+  .search li:hover, .search li.on { background:var(--grid); }
+
+  .card { background:var(--surface-1); border:1px solid var(--border); border-radius:12px; }
+  .mapcard { position:relative; overflow:hidden; }
+  svg.map { display:block; width:100%; height:auto; background:var(--ocean); touch-action:none; }
+  .country { stroke:var(--surface-1); stroke-width:.4; stroke-linejoin:round; cursor:pointer; }
+  .country.hl { stroke:var(--text-primary); stroke-width:1.2; }
+  .dot { stroke:var(--surface-1); stroke-width:1; cursor:pointer; }
+  .dot.hl { stroke:var(--text-primary); stroke-width:1.6; }
+  .sphere { fill:var(--ocean); stroke:var(--baseline); stroke-width:.5; }
+  .graticule { fill:none; stroke:var(--grid); stroke-width:.4; }
+
+  .zoombar { position:absolute; right:10px; bottom:10px; display:flex; flex-direction:column; gap:4px; }
+  .zoombar button {
+    width:28px; height:28px; font:inherit; font-size:14px; line-height:1; cursor:pointer;
+    border:1px solid var(--border); background:var(--surface-1); color:var(--text-primary); border-radius:6px;
+  }
+  .zoombar button:hover { background:var(--grid); }
+
+  .legend { display:flex; flex-wrap:wrap; gap:4px 18px; margin:14px 0 0; padding:0; list-style:none; align-items:center; }
+  .legend li { display:inline-flex; align-items:center; gap:7px; font-size:12.5px; color:var(--text-secondary); }
+  .legend .sw { width:13px; height:13px; border-radius:3px; flex:none; box-shadow:inset 0 0 0 1px var(--border); }
+  .legend .n { font-variant-numeric:tabular-nums; color:var(--text-primary); font-weight:600; }
+  .legend .rule { width:1px; height:16px; background:var(--border); }
+  .sw.stripe { background-color:var(--c-visa_required);
+    background-image:repeating-linear-gradient(45deg, transparent 0 2px, var(--surface-1) 2px 3.1px); }
+  .sw.ftkey { display:inline-block; width:12px; height:12px; border-radius:3px;
+    vertical-align:-1px; margin-right:5px; box-shadow:inset 0 0 0 1px var(--border); }
+  .conf { color:var(--muted); font-size:10.5px; }
+
+  .tip {
+    position:fixed; z-index:60; pointer-events:none; min-width:216px; max-width:310px;
+    background:var(--surface-1); color:var(--text-primary);
+    border:1px solid var(--border); border-radius:10px; padding:10px 12px;
+    box-shadow:0 10px 30px rgba(0,0,0,.18); font-size:12.5px; line-height:1.45;
+  }
+  .tip[hidden] { display:none; }
+  .tip h3 { margin:0 0 7px; font-size:13.5px; font-weight:650; }
+  .tip .best { margin:0 0 8px; font-size:11.5px; color:var(--text-secondary); }
+  .tip dl { margin:0; display:grid; grid-template-columns:auto 1fr; gap:5px 9px; align-items:start; }
+  .tip dt { display:flex; align-items:center; gap:6px; color:var(--text-secondary); white-space:nowrap; font-size:11.5px; }
+  .tip dd { margin:0; font-size:12px; }
+  .tip dd .stay { color:var(--muted); }
+  .tip .note { margin:8px 0 0; padding-top:7px; border-top:1px solid var(--border); font-size:11px; color:var(--muted); }
+  .chip { width:10px; height:10px; border-radius:3px; flex:none; box-shadow:inset 0 0 0 1px var(--border); }
+
+  .warn {
+    margin:0 0 12px; padding:9px 12px; font-size:12px; line-height:1.55;
+    color:var(--text-secondary); background:var(--surface-1);
+    border:1px solid var(--border); border-left:3px solid var(--c-refused); border-radius:8px;
+  }
+  .warn strong { color:var(--text-primary); }
+
+  .spot { display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin:0 0 10px; font-size:12.5px; }
+  .spot .lbl { color:var(--text-secondary); margin-right:2px; }
+  .spot button {
+    font:inherit; font-size:12.5px; cursor:pointer; display:inline-flex; align-items:center; gap:6px;
+    padding:5px 10px; border-radius:7px;
+    border:1px solid var(--border); background:var(--surface-1); color:var(--text-secondary);
+  }
+  .spot button:hover { background:var(--grid); color:var(--text-primary); }
+  .spot button[aria-pressed="true"] {
+    background:var(--text-primary); color:var(--surface-1); border-color:var(--text-primary); font-weight:550;
+  }
+  .spot button[aria-pressed="true"] .n { color:var(--surface-1); }
+  .spot .n { font-variant-numeric:tabular-nums; color:var(--text-primary); font-weight:600; }
+  .spot .hint { color:var(--muted); }
+
+  /* spotlight: one document's unique wins ringed, everything else pushed back */
+  .country.dim, .dot.dim { opacity:.2; }
+  .country.win { stroke:var(--text-primary); stroke-linejoin:round; }
+  .dot.win { stroke:var(--text-primary); }
+
+  table.tbl { width:100%; border-collapse:collapse; font-size:12.5px; }
+  table.tbl th, table.tbl td { text-align:left; padding:6px 10px; border-bottom:1px solid var(--grid); vertical-align:top; }
+  table.tbl th { position:sticky; top:0; background:var(--surface-1); color:var(--text-secondary); font-weight:600; font-size:11.5px; z-index:1; }
+  table.tbl td.c { white-space:nowrap; }
+  table.tbl td .cell { display:inline-flex; align-items:center; gap:6px; }
+  .tblwrap { max-height:620px; overflow:auto; }
+  [hidden] { display:none !important; }
+
+  details.ft { margin-top:22px; font-size:11.5px; color:var(--muted); line-height:1.65; max-width:96ch; }
+  details.ft a { color:var(--text-secondary); }
+  details.ft strong { color:var(--text-secondary); font-weight:600; }
+  details.ft > summary {
+    cursor:pointer; list-style:none; display:inline-flex; align-items:center; gap:6px;
+    font-size:12px; color:var(--text-secondary); padding:5px 9px; margin-left:-9px; border-radius:7px;
+  }
+  details.ft > summary::-webkit-details-marker { display:none; }
+  details.ft > summary::before {
+    content:"▶"; font-size:13px; line-height:1; color:var(--text-secondary);
+    transition:transform .15s ease;
+  }
+  details.ft[open] > summary::before { transform:rotate(90deg); }
+  details.ft > summary:hover { background:var(--grid); color:var(--text-primary); }
+  details.ft > :not(summary) { margin-left:0; padding-top:4px; }
+
+  /* ── narrow screens ────────────────────────────────────────────────────── */
+  @media (max-width: 680px) {
+    .viz-root { padding:16px 12px 32px; }
+    header.hd { flex-wrap:wrap; gap:10px; margin-bottom:14px; }
+    h1 { font-size:17px; }
+    .sub { font-size:12.5px; }
+
+    /* one item per line beats a ragged wrap on a phone */
+    .controls { flex-direction:column; align-items:stretch; gap:10px; }
+    .pickers { flex-wrap:wrap; gap:8px 12px; }
+    .pickers .sep { display:none; }
+    .search { margin-left:0; }
+    .search input { width:100%; }
+    #view { align-self:flex-start; }
+
+    /* the world is ~2:1, so on a phone it would be ~170px tall at full width —
+       give the SVG real height and let the projection centre inside it */
+    svg.map { height:52vh; min-height:260px; }
+    .legend { gap:4px 14px; font-size:12px; }
+    .spot { gap:5px; }
+    .spot .lbl { flex-basis:100%; }
+    .spot .hint { display:none; }
+
+    /* a cursor-following tooltip is meaningless on touch: dock it as a sheet */
+    .tip {
+      left:8px !important; right:8px; top:auto !important; bottom:8px;
+      max-width:none; min-width:0; max-height:62vh; overflow-y:auto;
+      box-shadow:0 -6px 28px rgba(0,0,0,.26);
+    }
+    .tip dl { grid-template-columns:1fr; gap:2px; }
+    .tip dd { margin:0 0 6px 16px; }
+
+    .tblwrap { max-height:none; }
+    table.tbl th, table.tbl td { padding:5px 7px; font-size:11.5px; }
+    details.ft { font-size:11px; }
+  }
+
+  /* touch: let one finger scroll the page vertically; the map still pinch-zooms
+     and pans horizontally, which beats trapping the scroll inside the map */
+  @media (hover: none) {
+    svg.map { touch-action:pan-y; }
+    .tip { pointer-events:auto; }
+  }
+
+  .tipx {
+    position:absolute; top:6px; right:6px; width:26px; height:26px; display:none;
+    font:inherit; font-size:15px; line-height:1; cursor:pointer;
+    border:1px solid var(--border); border-radius:6px;
+    background:var(--surface-1); color:var(--text-secondary);
+  }
+  .tip.pinned { pointer-events:auto; }
+  .tip.pinned .tipx { display:block; }
+  .tip.pinned h3 { padding-right:28px; }
+</style>
+</head>
+<body>
+<div class="viz-root">
+<div class="wrap">
+
+  <p class="warn">
+    <strong>Planning aid, not advice.</strong> The U.S., Russian and Israeli-passport layers are parsed from
+    Wikipedia. The Israeli <em>laissez-passer</em> layer is mostly <em>not</em>: no country-by-country source for
+    that document exists, so <span id="warn-n"></span> of its destinations fall back to a general rule and are
+    drawn with diagonal stripes. Always confirm with the embassy before booking.
+  </p>
+
+  <header class="hd">
+    <div>
+      <h1>Visa requirements by travel document</h1>
+      <p class="sub">Entry requirements for short tourist visits across a U.S. passport, a Russian passport and the
+         two Israeli travel documents. Tick the documents a traveller holds and the map shows the easiest way in to
+         each destination — darker is easier. Hover a country for the per-document breakdown.</p>
+    </div>
+    <button class="btn" id="theme" type="button">Dark</button>
+  </header>
+
+  <div class="controls">
+    <div class="pickers" id="pickers">
+      <span>Documents held:</span>
+      <label><input type="checkbox" id="use-US" checked> U.S. passport</label>
+      <label><input type="checkbox" id="use-RU" checked> Russian passport</label>
+      <span class="sep"></span>
+      <span>Israeli —</span>
+      <label><input type="radio" name="ildoc" value="LP" checked> laissez-passer</label>
+      <label><input type="radio" name="ildoc" value="IL"> passport</label>
+      <label><input type="radio" name="ildoc" value=""> neither</label>
+    </div>
+
+
+    <div class="seg" id="view" role="group" aria-label="View">
+      <button type="button" data-v="map" aria-pressed="true">Map</button>
+      <button type="button" data-v="table" aria-pressed="false">Table</button>
+    </div>
+
+    <div class="search">
+      <input id="q" type="search" placeholder="Find a country…" autocomplete="off" aria-label="Find a country">
+      <ul id="qlist" hidden></ul>
+    </div>
+  </div>
+
+  <div class="spot" id="spotlight"></div>
+
+  <div class="card mapcard" id="mapcard">
+    <svg class="map" id="svg" role="img" aria-label="World map of entry requirements"></svg>
+    <div class="zoombar">
+      <button type="button" id="zin" title="Zoom in">+</button>
+      <button type="button" id="zout" title="Zoom out">−</button>
+      <button type="button" id="zreset" title="Reset view">⤢</button>
+    </div>
+  </div>
+
+  <ul class="legend" id="legend"></ul>
+
+  <div class="card tblwrap" id="tablewrap" hidden>
+    <table class="tbl" id="tbl"><thead></thead><tbody></tbody></table>
+  </div>
+
+
+  <details class="ft">
+    <summary>Sources, assumptions &amp; caveats</summary>
+    <p style="margin:0 0 6px"><strong>Sources.</strong>
+      U.S., Russian and Israeli-passport rows are parsed from the English Wikipedia articles
+      <a href="https://en.wikipedia.org/wiki/Visa_requirements_for_United_States_citizens">Visa requirements for United States citizens</a>,
+      <a href="https://en.wikipedia.org/wiki/Visa_requirements_for_Russian_citizens">…for Russian citizens</a> and
+      <a href="https://en.wikipedia.org/wiki/Visa_requirements_for_Israeli_citizens">…for Israeli citizens</a>, retrieved <span id="gen"></span>.</p>
+    <p style="margin:0 0 6px"><strong>ETIAS is modelled as already in force, which it is not.</strong>
+      The 30 participating states are shown as needing a travel authorisation rather than nothing at all,
+      for every document that enters them visa-free. It is not applied to Ireland, which stays outside
+      Schengen, and not to the Russian passport, since ETIAS does not replace a visa. For the laissez-passer
+      this is a judgement call: ESTA, Canadian eTA, NZeTA and the UK ETA all reject the document, but the
+      EU register of recognised travel documents explicitly accepts it and ETIAS keys off visa-exempt
+      nationality rather than document type — so it is shown as getting ETIAS. If that turns out wrong,
+      those 30 become visa-required.</p>
+
+    <p style="margin:0 0 6px"><strong>The laissez-passer layer is approximate.</strong>
+      No country-by-country table exists for the Israeli <em>teudat ma'avar</em> — the Wikipedia article above
+      states outright that its table covers “holders of ordinary passports” and that requirements for the
+      Teudat Maavar “may vary”. So this layer is hand-built, and the tooltip names its basis for every country:
+      <em>sourced</em> (<span id="n-official"></span>) from
+      <a href="https://en.wikipedia.org/wiki/Israeli_travel_document_in_lieu_of_national_passport">Wikipedia</a>
+      citing the European Commission register of recognised travel documents, plus the
+      <a href="https://www.henleyglobal.com/publications/global-mobility-report/2026-january/one-citizenship-two-travel-documents-israels-distinct-mobility-framework-and-its-global-significance">Henley Global Mobility Report (Jan 2026)</a>;
+      <em>reported</em> (<span id="n-reported"></span>) from compilations of embassy replies, which contradict
+      each other in four places — flagged as disputed in the tooltip.</p>
+    <p style="margin:0 0 6px"><span class="sw stripe ftkey"></span><strong>Diagonal stripes on the map</strong>
+      mark the remaining <span id="n-inferred"></span> countries, which carry no country-specific source and fall
+      back to a <strong>general rule</strong>, because visa exemptions are nearly always written for passport holders:
+      a darkon waiver is assumed <em>not</em> to carry over, visa-on-arrival counters are assumed to accept the
+      document, and eVisa portals are assumed not to. The rule is deliberately pessimistic, so a striped country
+      means “expect to need a visa, and confirm with the embassy” — not “probably fine”.</p>
+    <p style="margin:0"><strong>Practical notes.</strong>
+      Russia requires its own citizens to enter and leave Russia on the Russian passport, and Israel likewise
+      requires Israeli citizens to use an Israeli document.
+      Several states that bar Israeli travel documents also refuse entry on any passport showing Israeli stamps or visas.
+      Rules change frequently and depend on purpose of travel, residence and prior history — this map is a planning aid, not advice.</p>
+  </details>
+
+  <!-- must stay inside .viz-root: it is styled entirely with that scope's custom properties -->
+  <div class="tip" id="tip" hidden></div>
+
+</div>
+</div>
+
+<script>/*__D3__*/</script>
+<script>/*__TOPOJSON__*/</script>
+<script id="world" type="application/json">/*__WORLD__*/</script>
+<script id="visa" type="application/json">/*__VISA__*/</script>
+<script>
+(function () {
+  "use strict";
+  const world = JSON.parse(document.getElementById("world").textContent);
+  const DATA  = JSON.parse(document.getElementById("visa").textContent);
+  const C = DATA.countries;
+
+  const DOCS = [
+    { k: "US", label: "U.S. passport" },
+    { k: "RU", label: "Russian passport" },
+    { k: "LP", label: "Israeli laissez-passer" },
+    { k: "IL", label: "Israeli passport (darkon)" }
+  ];
+  const CATS = [
+    { k: "visa_free",     t: "Visa not required" },
+    { k: "eta",           t: "Travel authorisation" },
+    { k: "voa",           t: "Visa on arrival" },
+    { k: "evisa",         t: "eVisa" },
+    { k: "visa_required", t: "Visa required" },
+    { k: "refused",       t: "Admission refused" },
+    { k: "unknown",       t: "No data" }
+  ];
+  const RANK = {}; CATS.forEach((c, i) => RANK[c.k] = i);
+  const CATT = {}; CATS.forEach(c => CATT[c.k] = c.t);
+  const fill = k => k === "unknown" ? "url(#hatch)" : "var(--c-" + k + ")";
+  const swatch = k => k === "unknown" ? "var(--c-unknown)" : "var(--c-" + k + ")";
+
+  const CONF = { official: "sourced", confirmed: "confirmed by you",
+                 reported: "reported", inferred: "general rule" };
+
+  // You hold one Israeli document or the other, never both, so ilDoc is a single choice.
+  // Ticking a single document is how you get a single-document map — there is no separate mode.
+  let useUS = true, useRU = true, ilDoc = "LP";
+  let pinned = null, focusDoc = null, zoomK = 1;
+
+  const selected = () => [useUS && "US", useRU && "RU", ilDoc].filter(Boolean);
+  const picks = k => selected().indexOf(k) !== -1;
+
+  function statusFor(iso, docKey) {
+    const rec = C[iso]; if (!rec) return null;
+    const s = rec.docs[docKey];
+    if (!s) return null;
+    return s;
+  }
+  // true when what the map is showing rests on an inferred laissez-passer rule
+  function isInferred(iso) {
+    const s = shown(iso);
+    return !!(s.via === "LP" && s.rec && s.rec.conf === "inferred");
+  }
+  // best category available across the documents currently ticked
+  function shown(iso) {
+    let best = null;
+    for (const k of selected()) {
+      const s = statusFor(iso, k);
+      if (!s || s.cat === "unknown") continue;
+      if (!best || RANK[s.cat] < RANK[best.rec.cat]) best = { cat: s.cat, via: k, rec: s };
+    }
+    return best || { cat: "unknown", via: null, rec: null };
+  }
+
+  // ── map ───────────────────────────────────────────────────────────────────
+  const W = 1180, H = 560;
+  const svg = d3.select("#svg").attr("viewBox", [0, 0, W, H].join(" "));
+  const defs = svg.append("defs");
+  defs.append("pattern")
+      .attr("id", "hatch").attr("patternUnits", "userSpaceOnUse")
+      .attr("width", 5).attr("height", 5).attr("patternTransform", "rotate(45)")
+    .call(p => {
+      p.append("rect").attr("width", 5).attr("height", 5).attr("fill", "var(--c-unknown)");
+      p.append("line").attr("x1", 0).attr("y1", 0).attr("x2", 0).attr("y2", 5)
+       .attr("stroke", "var(--hatch)").attr("stroke-width", 1.4);
+    });
+  // laid over the fill where the laissez-passer status is inferred rather than sourced
+  defs.append("pattern")
+      .attr("id", "unsure").attr("patternUnits", "userSpaceOnUse")
+      .attr("width", 4).attr("height", 4).attr("patternTransform", "rotate(45)")
+    .call(p => p.append("line").attr("x1", 0).attr("y1", 0).attr("x2", 0).attr("y2", 4)
+                 .attr("stroke", "var(--surface-1)").attr("stroke-width", 1.1).attr("opacity", .85));
+
+  const g = svg.append("g");
+  const projection = d3.geoEqualEarth();
+  const path = d3.geoPath(projection);
+  const sphere = { type: "Sphere" };
+  projection.fitExtent([[6, 6], [W - 6, H - 6]], sphere);
+
+  g.append("path").datum(sphere).attr("class", "sphere").attr("d", path);
+  g.append("path").datum(d3.geoGraticule10()).attr("class", "graticule").attr("d", path);
+
+  const feats = topojson.feature(world, world.objects.countries).features
+                  .filter(f => C[f.properties.name]);
+  // small territories need a dot so they are visible and hoverable at world scale
+  const SMALL = 7;
+  const dots = feats.filter(f => path.area(f) < SMALL)
+                    .map(f => ({ id: f.properties.name, c: path.centroid(f) }))
+                    .filter(d => d.c.every(Number.isFinite));
+
+  const paths = g.append("g").selectAll("path").data(feats).join("path")
+      .attr("class", "country").attr("d", path)
+      .on("pointerenter", (e, f) => hover(e, f.properties.name))
+      .on("pointermove", moveTip)
+      .on("pointerleave", leave)
+      .on("click", (e, f) => pin(f.properties.name));
+
+  const overlay = g.append("g").attr("pointer-events", "none").selectAll("path").data(feats).join("path")
+      .attr("d", path).attr("fill", "url(#unsure)").attr("stroke", "none");
+
+  let wins = new Set();   // countries the spotlit document uniquely wins
+
+  const circles = g.append("g").selectAll("circle").data(dots).join("circle")
+      .attr("class", "dot").attr("cx", d => d.c[0]).attr("cy", d => d.c[1]).attr("r", 3.4)
+      .on("pointerenter", (e, d) => hover(e, d.id))
+      .on("pointermove", moveTip)
+      .on("pointerleave", leave)
+      .on("click", (e, d) => pin(d.id));
+
+  // stroke widths are in map units, so they must be divided by the zoom scale to hold
+  // a constant on-screen weight; the spotlight ring is thicker than the base border
+  const strokeW = name => (focusDoc && wins.has(name) ? 1.7 : 0.4) / zoomK;
+  const dotW = name => (focusDoc && wins.has(name) ? 2 : 1) / zoomK;
+
+  const zoom = d3.zoom().scaleExtent([1, 14]).on("zoom", e => {
+    zoomK = e.transform.k;
+    g.attr("transform", e.transform);
+    paths.attr("stroke-width", f => strokeW(f.properties.name));
+    circles.attr("r", 3.4 / Math.sqrt(zoomK)).attr("stroke-width", d => dotW(d.id));
+  });
+  svg.call(zoom);
+  // tapping the ocean dismisses a pinned tooltip — the main way out on touch
+  svg.on("click", e => {
+    if (pinned && !e.target.closest(".country, .dot")) { pinned = null; clearTip(); }
+  });
+  d3.select("#zin").on("click", () => svg.transition().duration(220).call(zoom.scaleBy, 1.6));
+  d3.select("#zout").on("click", () => svg.transition().duration(220).call(zoom.scaleBy, 1 / 1.6));
+  d3.select("#zreset").on("click", () => svg.transition().duration(300).call(zoom.transform, d3.zoomIdentity));
+
+  // ── tooltip ───────────────────────────────────────────────────────────────
+  const tip = document.getElementById("tip");
+  function tipHTML(iso) {
+    const rec = C[iso], s = shown(iso);
+    const rows = DOCS.map(d => {
+      const v = rec.docs[d.k];
+      const cat = v ? v.cat : "unknown";
+      const dim = picks(d.k) ? "" : ' style="opacity:.45"';
+      const stay = v && v.stay ? ' <span class="stay">· ' + esc(v.stay) + "</span>" : "";
+      const conf = v && v.conf && v.conf !== "official"
+        ? ' <span class="conf">(' + CONF[v.conf] + ")</span>" : "";
+      const txt = v ? esc(v.label) : "No data";
+      return "<dt" + dim + '><span class="chip" style="background:' + swatch(cat) + '"></span>' + d.label + "</dt>" +
+             "<dd" + dim + ">" + txt + conf + stay + "</dd>";
+    }).join("");
+    const viaDoc = s.via && DOCS.find(d => d.k === s.via);
+    const best = viaDoc && selected().length > 1
+      ? '<p class="best">Best option: <strong>' + esc(viaDoc.label) + "</strong></p>"
+      : "";
+    const lpRec = rec.docs.LP;
+    const lp = lpRec && lpRec.src
+      ? '<p class="note">Laissez-passer, <strong>' + CONF[lpRec.conf] + "</strong>: " + esc(lpRec.src) + "</p>"
+      : "";
+    return '<button type="button" class="tipx" aria-label="Close">×</button>' +
+           "<h3>" + esc(rec.name) + "</h3>" + best + "<dl>" + rows + "</dl>" + lp;
+  }
+  // on a phone the tip is docked as a bottom sheet by CSS, so don't chase the cursor
+  const sheet = () => matchMedia("(max-width: 680px)").matches;
+
+  function hover(e, iso) { if (pinned) return; show(iso); moveTip(e); }
+  function show(iso) {
+    tip.innerHTML = tipHTML(iso);
+    tip.hidden = false;
+    tip.classList.toggle("pinned", !!pinned);
+    paths.classed("hl", f => f.properties.name === iso);
+    circles.classed("hl", d => d.id === iso);
+  }
+  function moveTip(e) {
+    if (pinned || sheet()) return;
+    const r = tip.getBoundingClientRect();
+    let x = e.clientX + 16, y = e.clientY + 16;
+    if (x + r.width > innerWidth - 8) x = e.clientX - r.width - 16;
+    if (y + r.height > innerHeight - 8) y = e.clientY - r.height - 16;
+    tip.style.left = Math.max(8, x) + "px"; tip.style.top = Math.max(8, y) + "px";
+  }
+  function clearTip() {
+    tip.hidden = true; tip.classList.remove("pinned");
+    paths.classed("hl", false); circles.classed("hl", false);
+  }
+  function leave() { if (!pinned) clearTip(); }
+  function pin(iso) {
+    pinned = pinned === iso ? null : iso;
+    if (pinned) show(iso); else clearTip();
+  }
+  tip.addEventListener("click", e => { if (e.target.closest(".tipx")) { pinned = null; clearTip(); } });
+  document.addEventListener("keydown", e => { if (e.key === "Escape") { pinned = null; clearTip(); } });
+
+  // ── legend, panels, table ─────────────────────────────────────────────────
+  function counts() {
+    const n = {}; CATS.forEach(c => n[c.k] = 0);
+    Object.keys(C).forEach(iso => { n[shown(iso).cat]++; });
+    return n;
+  }
+  function renderLegend() {
+    const n = counts();
+    const nInf = Object.keys(C).filter(isInferred).length;
+    const item = c => '<li><span class="sw" style="background:' + swatch(c.k) + '"></span>' +
+                      c.t + ' <span class="n">' + n[c.k] + "</span></li>";
+    // The stripe texture is keyed in the footer rather than here — it qualifies the
+    // laissez-passer layer's provenance, which is a footnote, not a map category.
+    const inf = "";
+    document.getElementById("legend").innerHTML =
+      CATS.slice(0, 5).map(item).join("") +
+      '<li class="rule"></li>' + CATS.slice(5).map(item).join("") + inf;
+  }
+
+  // Destinations one document reaches more easily than any other document ticked.
+  // Returns { docKey: Set(countryName) }.
+  function winners() {
+    const sel = selected();
+    const only = {}; sel.forEach(k => only[k] = new Set());
+    Object.keys(C).forEach(iso => {
+      const ranks = {};
+      sel.forEach(k => { const s = statusFor(iso, k); ranks[k] = s && s.cat !== "unknown" ? RANK[s.cat] : 99; });
+      sel.forEach(k => {
+        const mine = statusFor(iso, k);
+        // a document's own country is not a destination it "wins" — the others get you in
+        // too, you simply have to present this one at the border
+        if (mine && mine.home) return;
+        const others = sel.filter(o => o !== k).map(o => ranks[o]);
+        // only interesting if the document actually spares an embassy visit —
+        // "uniquely needs a visa here" is not a reason to carry it
+        if (ranks[k] < RANK.visa_required && others.every(r => ranks[k] < r)) only[k].add(C[iso].name);
+      });
+    });
+    return only;
+  }
+
+  function renderSpotlight(only) {
+    const sel = selected();
+    const box = document.getElementById("spotlight");
+    if (sel.length < 2) { box.innerHTML = ""; return; }
+    box.innerHTML = '<span class="lbl">Show where only one document helps:</span>' +
+      sel.map(k => {
+        const d = DOCS.find(x => x.k === k);
+        return '<button type="button" data-k="' + k + '" aria-pressed="' + (focusDoc === k) + '">' +
+               esc(d.label) + ' <span class="n">' + only[k].size + "</span></button>";
+      }).join("") +
+      (focusDoc ? '<span class="hint">— everything else dimmed; click again to clear</span>' : "");
+  }
+
+  function renderTable() {
+    const head = "<tr><th>Destination</th>" +
+      DOCS.map(d => "<th>" + d.label + "</th>").join("") +
+      "<th>Best</th></tr>";
+    const rows = Object.keys(C).map(iso => ({ iso, name: C[iso].name }))
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map(({ iso }) => {
+        const rec = C[iso], s = shown(iso);
+        const cells = DOCS.map(d => {
+          const v = rec.docs[d.k], cat = v ? v.cat : "unknown";
+          return '<td class="c"><span class="cell"><span class="chip" style="background:' + swatch(cat) +
+                 '"></span>' + (v ? esc(v.label) : "No data") + "</span></td>";
+        }).join("");
+        const via = s.via ? DOCS.find(d => d.k === s.via).label : "—";
+        return "<tr><td>" + esc(rec.name) + "</td>" + cells +
+               '<td class="c"><span class="cell"><span class="chip" style="background:' + swatch(s.cat) +
+               '"></span>' + esc(CATT[s.cat]) +
+               (s.via && selected().length > 1 ? " (" + esc(via) + ")" : "") + "</span></td></tr>";
+      }).join("");
+    document.querySelector("#tbl thead").innerHTML = head;
+    document.querySelector("#tbl tbody").innerHTML = rows;
+  }
+
+  function paint() {
+    const sel = selected();
+    // unticking the spotlit document, or dropping to one document, clears the spotlight
+    if (focusDoc && (sel.indexOf(focusDoc) === -1 || sel.length < 2)) focusDoc = null;
+    const only = winners();
+    wins = focusDoc && only[focusDoc] ? only[focusDoc] : new Set();
+    const lit = name => !focusDoc || wins.has(name);
+
+    paths.attr("fill", f => fill(shown(f.properties.name).cat))
+         .classed("win", f => focusDoc && wins.has(f.properties.name))
+         .classed("dim", f => !lit(f.properties.name))
+         .attr("stroke-width", f => strokeW(f.properties.name));
+    circles.attr("fill", d => fill(shown(d.id).cat))
+           .classed("win", d => focusDoc && wins.has(d.id))
+           .classed("dim", d => !lit(d.id))
+           .attr("stroke-width", d => dotW(d.id));
+    overlay.attr("display", f => isInferred(f.properties.name) && lit(f.properties.name) ? null : "none");
+
+    renderLegend(); renderSpotlight(only); renderTable();
+    if (pinned) show(pinned);
+  }
+
+  // ── controls ──────────────────────────────────────────────────────────────
+  document.getElementById("spotlight").addEventListener("click", e => {
+    const b = e.target.closest("button[data-k]"); if (!b) return;
+    focusDoc = focusDoc === b.dataset.k ? null : b.dataset.k;
+    paint();
+  });
+  document.getElementById("use-US").addEventListener("change", e => { useUS = e.target.checked; paint(); });
+  document.getElementById("use-RU").addEventListener("change", e => { useRU = e.target.checked; paint(); });
+  document.querySelectorAll('input[name="ildoc"]').forEach(r => r.addEventListener("change", e => {
+    ilDoc = e.target.value; paint();
+  }));
+  document.querySelectorAll("#view button").forEach(b => b.addEventListener("click", () => {
+    document.querySelectorAll("#view button").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+    const t = b.dataset.v === "table";
+    document.getElementById("mapcard").hidden = t;
+    document.getElementById("legend").hidden = t;
+    document.getElementById("tablewrap").hidden = !t;
+  }));
+
+  const themeBtn = document.getElementById("theme");
+  const prefersDark = matchMedia("(prefers-color-scheme: dark)");
+  function setTheme(t) {
+    document.documentElement.dataset.theme = t;
+    themeBtn.textContent = t === "dark" ? "Light" : "Dark";
+  }
+  setTheme(prefersDark.matches ? "dark" : "light");
+  themeBtn.addEventListener("click", () =>
+    setTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark"));
+
+  // search
+  const q = document.getElementById("q"), qlist = document.getElementById("qlist");
+  const index = Object.keys(C).map(iso => ({ iso, name: C[iso].name }));
+  q.addEventListener("input", () => {
+    const v = q.value.trim().toLowerCase();
+    if (!v) { qlist.hidden = true; return; }
+    const hits = index.filter(x => x.name.toLowerCase().includes(v)).slice(0, 8);
+    qlist.innerHTML = hits.map(h => '<li data-iso="' + h.iso + '">' + esc(h.name) + "</li>").join("");
+    qlist.hidden = !hits.length;
+  });
+  qlist.addEventListener("click", e => {
+    const li = e.target.closest("li"); if (!li) return;
+    const iso = li.dataset.iso;
+    qlist.hidden = true; q.value = C[iso].name;
+    const f = feats.find(x => x.properties.name === iso);
+    if (f) {
+      const [[x0, y0], [x1, y1]] = path.bounds(f);
+      const k = Math.min(14, 0.7 / Math.max((x1 - x0) / W, (y1 - y0) / H));
+      svg.transition().duration(500).call(zoom.transform, d3.zoomIdentity
+        .translate(W / 2, H / 2).scale(k).translate(-(x0 + x1) / 2, -(y0 + y1) / 2));
+    }
+    pinned = iso; show(iso);
+    tip.style.left = "24px"; tip.style.top = "180px";
+  });
+  document.addEventListener("click", e => { if (!e.target.closest(".search")) qlist.hidden = true; });
+
+  function esc(s) {
+    return String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  }
+
+  document.getElementById("gen").textContent = DATA.generated;
+  // footnote counts come from the data so they cannot drift from a rebuild
+  const byConf = {};
+  Object.keys(C).forEach(iso => {
+    const lp = C[iso].docs.LP;
+    if (lp && lp.conf) byConf[lp.conf] = (byConf[lp.conf] || 0) + 1;
+  });
+  document.getElementById("n-official").textContent = byConf.official || 0;
+  document.getElementById("n-reported").textContent = byConf.reported || 0;
+  document.getElementById("n-inferred").textContent = byConf.inferred || 0;
+  document.getElementById("warn-n").textContent = (byConf.inferred || 0) + " of " +
+    Object.keys(C).filter(k => C[k].docs.LP).length;
+  paint();
+})();
+</script>
+</body>
+</html>

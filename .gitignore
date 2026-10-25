@@ -1,0 +1,6 @@
+# Wikipedia source dumps — ~450 KB of upstream text, refetched by the curl loop in
+# the README. Not committed so the repo stays a build, not a mirror.
+data/*.wiki
+
+.DS_Store
+__pycache__/
