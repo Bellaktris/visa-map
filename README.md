@@ -5,7 +5,7 @@ a U.S. passport, a Russian passport, and the two Israeli travel documents — th
 *darkon* and the *teudat ma'avar* laissez-passer. Tick the documents a traveller
 holds and the map shows the easiest way in to each of 235 destinations.
 
-**[View the map →](https://GITHUB_USER.github.io/REPO_NAME/)**
+**[View the map →](https://bellaktris.github.io/visa-map/)**
 
 > **Planning aid, not advice.** The U.S., Russian and Israeli-passport layers come
 > from Wikipedia. The laissez-passer layer largely does not — no country-by-country
