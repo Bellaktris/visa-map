@@ -146,14 +146,57 @@ Ashmore and Cartier Islands.
 
 ## Mobile
 
-Below 680px the controls stack one per line, the search box goes full width, and the
-map gets `height: 52vh` instead of following its 2:1 aspect — at full phone width that
-would leave it about 170px tall. The projection centres inside the taller box, so the
-extra space reads as ocean.
+Below 680px the page is reordered rather than merely reflowed. A vertical option list
+is tall enough that keeping source order would start the map around 760px down a
+844px screen, so `.wrap` becomes a flex column and `.controls` becomes
+`display: contents`, which lets its three children be ordered independently:
 
-The tooltip can't follow a cursor on touch, so it docks as a bottom sheet: tap a
-country to pin it, dismiss with the × , by tapping the ocean, or with Escape. The ×
-and the ocean-tap work on desktop too.
+```
+notice · header · Map/Table · search · MAP · spotlight · legend · documents held · table · footnotes
+```
+
+The two controls that change what the map *shows* stay above it; the document picker,
+which you set once, goes below. The legend sits between them on purpose — it is the
+feedback for the picker, so the counts move right beside your thumb as you tick, with
+no scrolling back up to the map.
+
+**The map takes its own aspect and bleeds to the screen edges.** It used to get
+`height: 52vh`, which at 390px produced a 364×439 box holding a 173px map: a
+whole-world projection cannot fill a portrait box, it can only letterbox, and 266px of
+empty card does not read as ocean. Pinch to zoom instead.
+
+**The notice collapses.** It is a `<details>`; the summary keeps both safety-critical
+clauses, so nothing load-bearing is ever hidden, and only the provenance paragraph —
+a third of the first screen — sits behind the toggle. JS forces it open above 680px.
+Note that `details.warn[open] > summary::after` outscores the desktop override, and a
+media query contributes no specificity, so that rule has to match the `[open]`
+selector rather than rely on source order.
+
+**Documents held** is a bordered settings list, one option per 44px row with 20px
+controls, instead of a ragged wrap of 13px checkboxes. **The legend** runs down the
+page, one status per line with counts aligned right.
+
+**The tap-a-country sheet lays the documents out as columns you swipe**, one per
+column — four stacked label/value pairs pushed the interesting rows off the bottom of
+a short sheet. It still docks at the bottom (a tooltip cannot follow a cursor on
+touch): tap a country to pin it, dismiss with the ×, by tapping the ocean, or with
+Escape. The × and the ocean-tap work on desktop too.
+
+**Find a country is a combobox**, not a search field: the caret — or a tap in the
+field — drops all 235 countries, and typing filters them, with prefix matches sorted
+ahead of substring ones so `ser` offers Serbia before Montserrat. Arrow keys and Enter
+work. The input is 16px on mobile because anything smaller makes iOS Safari zoom the
+whole page the moment the field takes focus.
+
+**The table scrolls sideways with the destination column pinned.** Seven columns will
+not fit in 364px; before, the name scrolled out of view and the rows lost their
+subject.
+
+Small territories are drawn as 3.4-unit dots, about 1px across on a phone. The
+pointer handlers therefore live on an invisible `circle.hit` layer, widened to an 8px
+radius under `(hover: none)` — converted through the rendered scale, so the target is
+the same size on a 320px phone as on a tablet, and recomputed on rotate. It shrinks
+with 1/k rather than 1/√k, so zooming in pulls crowded archipelagos apart again.
 
 Under `@media (hover: none)` the map uses `touch-action: pan-y`, so a one-finger
 vertical swipe scrolls the page rather than being swallowed by the map; pinch-zoom and

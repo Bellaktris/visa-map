@@ -41,17 +41,35 @@
 
   * { box-sizing:border-box; }
   html,body { margin:0; }
+  /* Safari inflates text in landscape without this, which breaks the control rows */
+  html { -webkit-text-size-adjust:100%; }
   body { background:var(--page); }
   .viz-root {
     font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
     background:var(--page); color:var(--text-primary);
-    min-height:100vh; padding:24px clamp(12px,3vw,40px) 48px;
+    min-height:100vh; min-height:100dvh; padding:24px clamp(12px,3vw,40px) 48px;
   }
+  /* "Hover"/"Tap" — only one is ever shown; see the (hover: none) block */
+  .tponly { display:none; }
   .wrap { max-width:1280px; margin:0 auto; }
 
-  header.hd { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:20px; }
+  /* The theme button belongs on the title's line, not floated against the top of the
+     whole text block — flex-start left it hovering above the h1 while the subtitle
+     ran full width underneath it, notched around nothing. display:contents promotes
+     the h1 and the subtitle to grid items so the subtitle can span both columns. */
+  header.hd {
+    display:grid; grid-template-columns:1fr auto; align-items:center;
+    column-gap:16px; row-gap:6px; margin-bottom:20px;
+  }
+  header.hd > div { display:contents; }
+  header.hd h1 { grid-area:1 / 1; margin:0; }
+  header.hd .btn { grid-area:1 / 2; }
+  header.hd .sub { grid-area:2 / 1 / 3 / -1; }
   h1 { font-size:21px; line-height:1.25; margin:0 0 6px; font-weight:650; letter-spacing:-0.01em; }
   .sub { font-size:13px; color:var(--text-secondary); margin:0; line-height:1.5; }
+  /* prose blocks top and bottom are justified; hyphenation keeps narrow columns
+     from opening rivers between the words */
+  .warn, .sub, details.ft p { text-align:justify; -webkit-hyphens:auto; hyphens:auto; }
   .btn {
     font:inherit; font-size:12.5px; padding:6px 11px; border-radius:7px; cursor:pointer;
     background:var(--surface-1); color:var(--text-primary);
@@ -75,26 +93,37 @@
   .pickers .sep { width:1px; height:15px; background:var(--border); }
   label.pickers { cursor:pointer; }
 
+  /* a combobox, not a search field: the caret opens the whole list, typing filters it */
   .search { position:relative; margin-left:auto; }
   .search input {
-    font:inherit; font-size:12.5px; padding:7px 10px; width:190px; border-radius:7px;
+    font:inherit; font-size:12.5px; padding:7px 28px 7px 10px; width:190px; border-radius:7px;
     border:1px solid var(--border); background:var(--surface-1); color:var(--text-primary);
   }
+  .search input::-webkit-search-cancel-button { display:none; }
+  .caret {
+    position:absolute; top:0; right:0; height:100%; width:28px; padding:0; display:grid; place-items:center;
+    border:0; background:none; color:var(--text-secondary); font-size:10px; line-height:1; cursor:pointer;
+  }
+  .caret::before { content:"▼"; transition:transform .15s ease; }
+  .search.open .caret::before { transform:rotate(180deg); }
   .search ul {
     position:absolute; z-index:40; top:calc(100% + 4px); left:0; right:0; margin:0; padding:4px; list-style:none;
     background:var(--surface-1); border:1px solid var(--border); border-radius:8px; max-height:240px; overflow:auto;
-    box-shadow:0 8px 24px rgba(0,0,0,.14);
+    box-shadow:0 8px 24px rgba(0,0,0,.14); overscroll-behavior:contain;
   }
   .search ul:empty, .search ul[hidden] { display:none; }
   .search li { padding:6px 8px; border-radius:5px; font-size:12.5px; cursor:pointer; }
   .search li:hover, .search li.on { background:var(--grid); }
+  .search li.none { color:var(--muted); cursor:default; }
+  .search li.none:hover { background:none; }
 
   .card { background:var(--surface-1); border:1px solid var(--border); border-radius:12px; }
   .mapcard { position:relative; overflow:hidden; }
   svg.map { display:block; width:100%; height:auto; background:var(--ocean); touch-action:none; }
   .country { stroke:var(--surface-1); stroke-width:.4; stroke-linejoin:round; cursor:pointer; }
   .country.hl { stroke:var(--text-primary); stroke-width:1.2; }
-  .dot { stroke:var(--surface-1); stroke-width:1; cursor:pointer; }
+  .dot { stroke:var(--surface-1); stroke-width:1; pointer-events:none; }
+  .hit { fill:transparent; stroke:none; cursor:pointer; }
   .dot.hl { stroke:var(--text-primary); stroke-width:1.6; }
   .sphere { fill:var(--ocean); stroke:var(--baseline); stroke-width:.5; }
   .graticule { fill:none; stroke:var(--grid); stroke-width:.4; }
@@ -131,6 +160,7 @@
   .tip dd { margin:0; font-size:12px; }
   .tip dd .stay { color:var(--muted); }
   .tip .note { margin:8px 0 0; padding-top:7px; border-top:1px solid var(--border); font-size:11px; color:var(--muted); }
+  .tip .swipe { display:none; }   /* shown only by the narrow layout, which lays the list out in columns */
   .chip { width:10px; height:10px; border-radius:3px; flex:none; box-shadow:inset 0 0 0 1px var(--border); }
 
   .warn {
@@ -139,8 +169,34 @@
     border:1px solid var(--border); border-left:3px solid var(--c-refused); border-radius:8px;
   }
   .warn strong { color:var(--text-primary); }
+  /* The notice is a <details> so a phone can collapse the provenance paragraph. The
+     summary keeps both safety-critical clauses, so nothing load-bearing is ever hidden;
+     JS forces it open above 680px, where there is room for the lot. */
+  details.warn > summary {
+    cursor:pointer; list-style:none; text-align:left;
+    display:grid; grid-template-columns:1fr auto; gap:10px; align-items:start;
+  }
+  details.warn > summary::-webkit-details-marker { display:none; }
+  details.warn > summary::after {
+    content:"Why"; font-size:11px; color:var(--text-secondary); white-space:nowrap;
+    border:1px solid var(--border); border-radius:999px; padding:2px 8px;
+  }
+  details.warn[open] > summary::after { content:"Less"; }
+  details.warn > p { margin:7px 0 0; }
+  @media (min-width: 681px) {
+    /* Held open by JS and non-interactive here, so the toggle would be noise. The
+       [open] selector above scores higher and a media query adds no specificity of
+       its own, so this has to match it rather than rely on coming later.
+       Lead line then detail: Chrome lays details content out in its own block box,
+       so the two cannot be reflowed into one paragraph anyway. */
+    details.warn > summary { cursor:default; display:block; }
+    details.warn[open] > summary::after, details.warn > summary::after { content:none; }
+    details.warn > p { margin:3px 0 0; }
+  }
 
   .spot { display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin:0 0 10px; font-size:12.5px; }
+  /* it empties itself below two documents — without this it still claims a flex gap */
+  .spot:empty { display:none; }
   .spot .lbl { color:var(--text-secondary); margin-right:2px; }
   .spot button {
     font:inherit; font-size:12.5px; cursor:pointer; display:inline-flex; align-items:center; gap:6px;
@@ -187,38 +243,108 @@
   /* ── narrow screens ────────────────────────────────────────────────────── */
   @media (max-width: 680px) {
     .viz-root { padding:16px 12px 32px; }
-    header.hd { flex-wrap:wrap; gap:10px; margin-bottom:14px; }
+    header.hd { column-gap:10px; margin-bottom:14px; }
     h1 { font-size:17px; }
     .sub { font-size:12.5px; }
 
-    /* one item per line beats a ragged wrap on a phone */
-    .controls { flex-direction:column; align-items:stretch; gap:10px; }
-    .pickers { flex-wrap:wrap; gap:8px 12px; }
-    .pickers .sep { display:none; }
-    .search { margin-left:0; }
-    .search input { width:100%; }
-    #view { align-self:flex-start; }
+    /* Reordered, because a vertical option list is tall enough to push the map off
+       the first screen: you land on the map, and the three controls that change what
+       it *shows* sit above it. The document picker is the one you set once, so it
+       goes below — with the legend between, which is what gives the toggles their
+       feedback: the counts sit right beside your thumb and move as you tick. */
+    .wrap { display:flex; flex-direction:column; gap:14px; }
+    .wrap > *, .controls > * { margin-top:0; margin-bottom:0; }
+    .controls { display:contents; }
+    .warn    { order:1; }
+    header.hd{ order:2; }
+    #view    { order:3; }
+    .search  { order:4; }
+    #mapcard { order:5; }
+    #spotlight { order:6; }
+    #legend  { order:7; }
+    .pickers { order:8; }
+    #tablewrap { order:9; }
+    details.ft { order:10; margin-top:8px; }
 
-    /* the world is ~2:1, so on a phone it would be ~170px tall at full width —
-       give the SVG real height and let the projection centre inside it */
-    svg.map { height:52vh; min-height:260px; }
-    .legend { gap:4px 14px; font-size:12px; }
-    .spot { gap:5px; }
+    /* One option per line. Rows are a bordered group, like a settings list: the
+       hairlines carry the grouping the removed vertical separator used to, and a
+       whole row is the hit target rather than a 13px box. */
+    .pickers { display:block; }
+    .pickers > span { display:block; font-size:11px; color:var(--muted); margin:0 0 5px; }
+    .pickers > span ~ span { margin-top:12px; }
+    .pickers .sep { display:none; }
+    .pickers label {
+      display:flex; align-items:center; gap:10px; min-height:44px; padding:0 12px;
+      font-size:14px; color:var(--text-primary);
+      background:var(--surface-1); border:1px solid var(--border); border-bottom-width:0;
+    }
+    .pickers label:first-of-type, .pickers > span + label { border-radius:9px 9px 0 0; }
+    .pickers label:has(+ span), .pickers label:last-of-type {
+      border-bottom-width:1px; border-radius:0 0 9px 9px;
+    }
+    .pickers input { width:20px; height:20px; flex:none; }
+
+    /* full-width two-up segmented control */
+    #view { display:flex; }
+    #view button { flex:1; min-height:40px; font-size:13.5px; }
+
+    .search { margin-left:0; }
+    /* 16px or iOS Safari zooms the whole page the moment the field takes focus */
+    .search input { width:100%; font-size:16px; min-height:44px; padding:0 34px 0 12px; }
+    .caret { width:34px; font-size:11px; }
+    .search ul { max-height:min(320px, 45vh); padding:5px; }
+    .search li { padding:11px 10px; font-size:14px; }
+
+    /* Fitted to its own 2.1:1 aspect and bled to the screen edges. A taller box
+       cannot be filled by a whole-world projection — it only letterboxes, which
+       read as an empty card rather than as ocean. Pinch to zoom in. */
+    .mapcard { margin-inline:-12px; border-radius:0; border-left:0; border-right:0; }
+    svg.map { height:auto; }
+
+    /* the legend reads down the side, one status per line, counts aligned right */
+    .legend { display:block; margin-top:12px; }
+    .legend li { display:flex; width:100%; gap:9px; padding:5px 0; font-size:13px; }
+    .legend li .n { margin-left:auto; }
+    .legend .rule { display:block; width:auto; height:1px; padding:0; margin:5px 0; }
+
+    .spot { gap:6px; }
     .spot .lbl { flex-basis:100%; }
+    .spot button { min-height:40px; }
     .spot .hint { display:none; }
 
     /* a cursor-following tooltip is meaningless on touch: dock it as a sheet */
     .tip {
       left:8px !important; right:8px; top:auto !important; bottom:8px;
-      max-width:none; min-width:0; max-height:62vh; overflow-y:auto;
+      max-width:none; min-width:0; max-height:62vh; max-height:62dvh; overflow-y:auto;
       box-shadow:0 -6px 28px rgba(0,0,0,.26);
     }
-    .tip dl { grid-template-columns:1fr; gap:2px; }
-    .tip dd { margin:0 0 6px 16px; }
+    /* one document per column, swiped sideways — four stacked label/value pairs
+       push the interesting rows off the bottom of a short sheet */
+    .tip dl {
+      grid-auto-flow:column; grid-template-columns:none; grid-template-rows:auto auto;
+      grid-auto-columns:minmax(124px, 1fr); gap:6px 0;
+      overflow-x:auto; overscroll-behavior-x:contain;
+      scroll-snap-type:x proximity; margin:0 -2px;
+    }
+    .tip dl > * { scroll-snap-align:start; padding:0 11px; }
+    .tip dt { white-space:normal; align-items:flex-start; font-size:11px; }
+    .tip dd { margin:0; font-size:12.5px; }
+    .tip dl > :nth-child(2n+3) , .tip dl > :nth-child(2n+4) { border-left:1px solid var(--border); }
+    .tip .swipe { display:block; margin:7px 0 0; font-size:10.5px; color:var(--muted); }
 
+    /* 7 columns will not fit, so the table scrolls sideways — but the destination
+       column has to stay put or the rows lose their subject */
     .tblwrap { max-height:none; }
-    table.tbl th, table.tbl td { padding:5px 7px; font-size:11.5px; }
+    table.tbl { width:max-content; min-width:100%; }
+    table.tbl th, table.tbl td { padding:7px; font-size:12px; }
+    table.tbl th:first-child, table.tbl td:first-child {
+      position:sticky; left:0; z-index:2; background:var(--surface-1);
+      box-shadow:1px 0 0 var(--grid); max-width:110px;
+    }
+    table.tbl th:first-child { z-index:3; }
+
     details.ft { font-size:11px; }
+    details.ft > summary { min-height:40px; }
   }
 
   /* touch: let one finger scroll the page vertically; the map still pinch-zooms
@@ -226,6 +352,10 @@
   @media (hover: none) {
     svg.map { touch-action:pan-y; }
     .tip { pointer-events:auto; }
+    .hvonly { display:none; }
+    .tponly { display:inline; }
+    .zoombar button { width:40px; height:40px; font-size:17px; }
+    .btn { min-height:40px; }
   }
 
   .tipx {
@@ -237,25 +367,32 @@
   .tip.pinned { pointer-events:auto; }
   .tip.pinned .tipx { display:block; }
   .tip.pinned h3 { padding-right:28px; }
+  @media (hover: none) {
+    .tipx { width:40px; height:40px; font-size:18px; }
+    .tip.pinned h3 { padding-right:44px; }
+  }
 </style>
 </head>
 <body>
 <div class="viz-root">
 <div class="wrap">
 
-  <p class="warn">
-    <strong>Planning aid, not advice.</strong> The U.S., Russian and Israeli-passport layers are parsed from
-    Wikipedia. The Israeli <em>laissez-passer</em> layer is mostly <em>not</em>: no country-by-country source for
-    that document exists, so <span id="warn-n"></span> of its destinations fall back to a general rule and are
-    drawn with diagonal stripes. Always confirm with the embassy before booking.
-  </p>
+  <details class="warn" id="warn">
+    <summary><span><strong>Planning aid, not advice.</strong> Always confirm with the embassy before
+      booking.</span></summary>
+    <p>The U.S., Russian and Israeli-passport layers are parsed from Wikipedia. The Israeli
+      <em>laissez-passer</em> layer is mostly <em>not</em>: no country-by-country source for that document
+      exists, so <span id="warn-n"></span> of its destinations fall back to a general rule and are drawn with
+      diagonal stripes.</p>
+  </details>
 
   <header class="hd">
     <div>
       <h1>Visa requirements by travel document</h1>
       <p class="sub">Entry requirements for short tourist visits across a U.S. passport, a Russian passport and the
          two Israeli travel documents. Tick the documents a traveller holds and the map shows the easiest way in to
-         each destination — darker is easier. Hover a country for the per-document breakdown.</p>
+         each destination — darker is easier. <span class="hvonly">Hover</span><span class="tponly">Tap</span>
+         a country for the per-document breakdown.</p>
     </div>
     <button class="btn" id="theme" type="button">Dark</button>
   </header>
@@ -278,9 +415,11 @@
       <button type="button" data-v="table" aria-pressed="false">Table</button>
     </div>
 
-    <div class="search">
-      <input id="q" type="search" placeholder="Find a country…" autocomplete="off" aria-label="Find a country">
-      <ul id="qlist" hidden></ul>
+    <div class="search" id="search">
+      <input id="q" type="search" placeholder="Find a country…" autocomplete="off" aria-label="Find a country"
+             role="combobox" aria-expanded="false" aria-controls="qlist" aria-autocomplete="list">
+      <button class="caret" id="qcaret" type="button" tabindex="-1" aria-label="Show all countries"></button>
+      <ul id="qlist" role="listbox" aria-label="Countries" hidden></ul>
     </div>
   </div>
 
@@ -471,7 +610,19 @@ function boot() {
   let wins = new Set();   // countries the spotlit document uniquely wins
 
   const circles = g.append("g").selectAll("circle").data(dots).join("circle")
-      .attr("class", "dot").attr("cx", d => d.c[0]).attr("cy", d => d.c[1]).attr("r", 3.4)
+      .attr("class", "dot").attr("cx", d => d.c[0]).attr("cy", d => d.c[1]).attr("r", 3.4);
+
+  // A 3.4-unit dot is about 1px across on a phone — not a target a finger can hit.
+  // So the handlers live on an invisible circle instead, widened on touch only. The
+  // 8 is CSS pixels, converted through the rendered scale so the target is the same
+  // size on a 320px phone as on a 768px tablet; it shrinks with 1/k rather than
+  // 1/√k, so zooming in pulls crowded archipelagos apart again.
+  const coarse = matchMedia("(hover: none)").matches;
+  let unit = W / (svg.node().clientWidth || W);   // map units per CSS pixel
+  const dotR = () => 3.4 / Math.sqrt(zoomK);
+  const hitR = () => coarse ? Math.max(dotR(), 8 * unit / zoomK) : dotR();
+  const hits = g.append("g").selectAll("circle").data(dots).join("circle")
+      .attr("class", "hit").attr("cx", d => d.c[0]).attr("cy", d => d.c[1]).attr("r", hitR())
       .on("pointerenter", (e, d) => hover(e, d.id))
       .on("pointermove", moveTip)
       .on("pointerleave", leave)
@@ -486,12 +637,18 @@ function boot() {
     zoomK = e.transform.k;
     g.attr("transform", e.transform);
     paths.attr("stroke-width", f => strokeW(f.properties.name));
-    circles.attr("r", 3.4 / Math.sqrt(zoomK)).attr("stroke-width", d => dotW(d.id));
+    circles.attr("r", dotR()).attr("stroke-width", d => dotW(d.id));
+    hits.attr("r", hitR());
   });
   svg.call(zoom);
   // tapping the ocean dismisses a pinned tooltip — the main way out on touch
   svg.on("click", e => {
-    if (pinned && !e.target.closest(".country, .dot")) { pinned = null; clearTip(); }
+    if (pinned && !e.target.closest(".country, .dot, .hit")) { pinned = null; clearTip(); }
+  });
+  // rotating a phone changes the rendered scale, and with it the touch target
+  addEventListener("resize", () => {
+    unit = W / (svg.node().clientWidth || W);
+    hits.attr("r", hitR());
   });
   d3.select("#zin").on("click", () => svg.transition().duration(220).call(zoom.scaleBy, 1.6));
   d3.select("#zout").on("click", () => svg.transition().duration(220).call(zoom.scaleBy, 1 / 1.6));
@@ -520,11 +677,22 @@ function boot() {
     const lp = lpRec && lpRec.src
       ? '<p class="note">Laissez-passer, <strong>' + CONF[lpRec.conf] + "</strong>: " + esc(lpRec.src) + "</p>"
       : "";
+    // the hint is CSS-hidden except on the narrow layout, where the list is columns
     return '<button type="button" class="tipx" aria-label="Close">×</button>' +
-           "<h3>" + esc(rec.name) + "</h3>" + best + "<dl>" + rows + "</dl>" + lp;
+           "<h3>" + esc(rec.name) + "</h3>" + best + "<dl>" + rows + "</dl>" +
+           '<p class="swipe">Swipe the row for the other documents →</p>' + lp;
   }
   // on a phone the tip is docked as a bottom sheet by CSS, so don't chase the cursor
-  const sheet = () => matchMedia("(max-width: 680px)").matches;
+  const narrow = matchMedia("(max-width: 680px)");
+  const sheet = () => narrow.matches;
+
+  // The notice collapses to its two safety-critical clauses on a phone, where the
+  // provenance paragraph costs a third of the first screen. Above 680px there is
+  // room for all of it, so it is always open and the toggle is styled away.
+  const warnBox = document.getElementById("warn");
+  const syncWarn = () => { warnBox.open = !narrow.matches; };
+  syncWarn();
+  narrow.addEventListener("change", syncWarn);
 
   function hover(e, iso) { if (pinned) return; show(iso); moveTip(e); }
   function show(iso) {
@@ -682,20 +850,57 @@ function boot() {
   themeBtn.addEventListener("click", () =>
     setTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark"));
 
-  // search
+  // ── country picker ────────────────────────────────────────────────────────
+  // A combobox rather than a search box: the caret (or a tap in the field) drops
+  // the whole list, and typing narrows it. On a phone, picking from a list beats
+  // spelling a country name into a field that offers nothing until you do.
   const q = document.getElementById("q"), qlist = document.getElementById("qlist");
-  const index = Object.keys(C).map(iso => ({ iso, name: C[iso].name }));
-  q.addEventListener("input", () => {
-    const v = q.value.trim().toLowerCase();
-    if (!v) { qlist.hidden = true; return; }
-    const hits = index.filter(x => x.name.toLowerCase().includes(v)).slice(0, 8);
-    qlist.innerHTML = hits.map(h => '<li data-iso="' + h.iso + '">' + esc(h.name) + "</li>").join("");
-    qlist.hidden = !hits.length;
-  });
-  qlist.addEventListener("click", e => {
-    const li = e.target.closest("li"); if (!li) return;
-    const iso = li.dataset.iso;
-    qlist.hidden = true; q.value = C[iso].name;
+  const searchBox = document.getElementById("search");
+  const index = Object.keys(C).map(iso => ({ iso, name: C[iso].name }))
+                  .sort((a, b) => a.name.localeCompare(b.name));
+  let active = -1;
+
+  function openList(filter) {
+    const v = (filter || "").trim().toLowerCase();
+    // "ser" should offer Serbia before Montserrat, so prefix matches sort first
+    const hits = v
+      ? index.filter(x => x.name.toLowerCase().includes(v))
+             .sort((a, b) => (a.name.toLowerCase().startsWith(v) ? 0 : 1) -
+                             (b.name.toLowerCase().startsWith(v) ? 0 : 1))
+      : index;
+    qlist.innerHTML = hits.length
+      ? hits.map((h, i) => '<li role="option" aria-selected="false" id="qo' + i +
+                           '" data-iso="' + esc(h.iso) + '">' + esc(h.name) + "</li>").join("")
+      : '<li class="none">No match</li>';
+    qlist.hidden = false;
+    searchBox.classList.add("open");
+    q.setAttribute("aria-expanded", "true");
+    setActive(-1);
+  }
+  function closeList() {
+    qlist.hidden = true;
+    searchBox.classList.remove("open");
+    q.setAttribute("aria-expanded", "false");
+    q.removeAttribute("aria-activedescendant");
+    active = -1;
+  }
+  function options() { return [...qlist.querySelectorAll("li[data-iso]")]; }
+  function setActive(i) {
+    const li = options();
+    if (!li.length) return;
+    li.forEach(e => { e.classList.remove("on"); e.setAttribute("aria-selected", "false"); });
+    active = i < 0 ? -1 : (i + li.length) % li.length;
+    if (active < 0) { q.removeAttribute("aria-activedescendant"); return; }
+    const el = li[active];
+    el.classList.add("on");
+    el.setAttribute("aria-selected", "true");
+    el.scrollIntoView({ block: "nearest" });
+    q.setAttribute("aria-activedescendant", el.id);
+  }
+  function goTo(iso) {
+    closeList();
+    q.value = C[iso].name;
+    q.blur();                                   // lets the on-screen keyboard go away
     const f = feats.find(x => x.properties.name === iso);
     if (f) {
       const [[x0, y0], [x1, y1]] = path.bounds(f);
@@ -705,8 +910,36 @@ function boot() {
     }
     pinned = iso; show(iso);
     tip.style.left = "24px"; tip.style.top = "180px";
+    // the map can be scrolled out of sight on a phone — a pick that lands off-screen
+    // looks like nothing happened
+    const card = document.getElementById("mapcard");
+    if (!card.hidden) card.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+
+  q.addEventListener("input", () => openList(q.value));
+  q.addEventListener("focus", () => openList(q.value));
+  document.getElementById("qcaret").addEventListener("mousedown", e => {
+    e.preventDefault();                          // keep focus where it is so the toggle reads true
+    if (qlist.hidden) { openList(q.value); q.focus(); } else closeList();
   });
-  document.addEventListener("click", e => { if (!e.target.closest(".search")) qlist.hidden = true; });
+  q.addEventListener("keydown", e => {
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      if (qlist.hidden) return openList(q.value);
+      setActive(active + (e.key === "ArrowDown" ? 1 : -1));
+    } else if (e.key === "Enter") {
+      const el = options()[active];
+      if (el) { e.preventDefault(); goTo(el.dataset.iso); }
+    } else if (e.key === "Escape" && !qlist.hidden) {
+      e.stopPropagation();                       // Escape closes the list before the tooltip
+      closeList();
+    }
+  });
+  qlist.addEventListener("click", e => {
+    const li = e.target.closest("li[data-iso]");
+    if (li) goTo(li.dataset.iso);
+  });
+  document.addEventListener("click", e => { if (!e.target.closest(".search")) closeList(); });
 
   function esc(s) {
     return String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
