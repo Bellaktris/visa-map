@@ -146,19 +146,23 @@ Ashmore and Cartier Islands.
 
 ## Mobile
 
-Below 680px the page is reordered rather than merely reflowed. A vertical option list
-is tall enough that keeping source order would start the map around 760px down a
-844px screen, so `.wrap` becomes a flex column and `.controls` becomes
-`display: contents`, which lets its three children be ordered independently:
+Below 680px `.wrap` becomes a flex column and `.controls` becomes `display: contents`,
+so its children can be ordered independently. Reading order is preserved:
 
 ```
-notice · header · Map/Table · search · MAP · spotlight · legend · documents held · table · footnotes
+notice · header · documents held · Map/Table · search · MAP · spotlight · legend · table · footnotes
 ```
 
-The two controls that change what the map *shows* stay above it; the document picker,
-which you set once, goes below. The legend sits between them on purpose — it is the
-feedback for the picker, so the counts move right beside your thumb as you tick, with
-no scrolling back up to the map.
+The problem this solves is that the vertical option list is 250px on its own — enough
+to start the map around 760px down an 844px screen. So **the picker collapses to a
+44px row** naming what is ticked (`Documents held — U.S. · Russian · Laissez-passer`)
+and expands on tap. The map then sits at 421–608px: on the first screen even on a
+667px iPhone SE.
+
+Ordering the picker *below* the map instead was tried and is worse. `#mapcard` and
+`#legend` carry `hidden` in table view, and a `display: none` flex item claims no
+order slot — so the picker silently jumped several hundred pixels up the page
+whenever you switched views.
 
 **The map takes its own aspect and bleeds to the screen edges.** It used to get
 `height: 52vh`, which at 390px produced a 364×439 box holding a 173px map: a

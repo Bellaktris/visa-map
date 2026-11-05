@@ -92,6 +92,8 @@
   .pickers[hidden] { display:none; }
   .pickers .sep { width:1px; height:15px; background:var(--border); }
   label.pickers { cursor:pointer; }
+  /* the narrow layout's disclosure for the picker; the row fits inline on a desktop */
+  .ptoggle { display:none; }
 
   /* a combobox, not a search field: the caret opens the whole list, typing filters it */
   .search { position:relative; margin-left:auto; }
@@ -210,6 +212,7 @@
   .spot button[aria-pressed="true"] .n { color:var(--surface-1); }
   .spot .n { font-variant-numeric:tabular-nums; color:var(--text-primary); font-weight:600; }
   .spot .hint { color:var(--muted); }
+  .spot .narrow { display:none; }
 
   /* spotlight: one document's unique wins ringed, everything else pushed back */
   .country.dim, .dot.dim { opacity:.2; }
@@ -247,24 +250,42 @@
     h1 { font-size:17px; }
     .sub { font-size:12.5px; }
 
-    /* Reordered, because a vertical option list is tall enough to push the map off
-       the first screen: you land on the map, and the three controls that change what
-       it *shows* sit above it. The document picker is the one you set once, so it
-       goes below — with the legend between, which is what gives the toggles their
-       feedback: the counts sit right beside your thumb and move as you tick. */
+    /* The controls keep their reading order; what changes is that the picker — a
+       268px vertical list, enough on its own to shove the map off the first screen —
+       collapses to a 44px row summarising what is ticked. Ordering it below the map
+       instead was worse: the map and legend are `hidden` in table view, so the picker
+       silently jumped up the page when you switched views. */
     .wrap { display:flex; flex-direction:column; gap:14px; }
     .wrap > *, .controls > * { margin-top:0; margin-bottom:0; }
     .controls { display:contents; }
     .warn    { order:1; }
     header.hd{ order:2; }
-    #view    { order:3; }
-    .search  { order:4; }
-    #mapcard { order:5; }
-    #spotlight { order:6; }
-    #legend  { order:7; }
-    .pickers { order:8; }
-    #tablewrap { order:9; }
-    details.ft { order:10; margin-top:8px; }
+    .ptoggle { order:3; }
+    .pickers { order:4; }
+    #view    { order:5; }
+    .search  { order:6; }
+    #mapcard { order:7; }
+    #spotlight { order:8; }
+    #legend  { order:9; }
+    #tablewrap { order:10; }
+    details.ft { order:11; margin-top:8px; }
+
+    .ptoggle {
+      display:flex; align-items:center; gap:10px; width:100%; min-height:44px; padding:0 12px;
+      font:inherit; font-size:14px; text-align:left; cursor:pointer;
+      color:var(--text-primary); background:var(--surface-1);
+      border:1px solid var(--border); border-radius:9px;
+    }
+    .ptoggle > span:first-child { flex:none; }
+    .ptoggle .psum {
+      flex:1; min-width:0; text-align:right; color:var(--text-secondary); font-size:12.5px;
+      overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+    }
+    .ptoggle::after { content:"▼"; flex:none; font-size:9px; color:var(--text-secondary); }
+    .ptoggle[aria-expanded="true"]::after { content:"▲"; }
+    .pickers:not(.open) { display:none; }
+    /* the toggle already says "Documents held" */
+    .pickers > span:first-of-type { display:none; }
 
     /* One option per line. Rows are a bordered group, like a settings list: the
        hairlines carry the grouping the removed vertical separator used to, and a
@@ -307,9 +328,14 @@
     .legend li .n { margin-left:auto; }
     .legend .rule { display:block; width:auto; height:1px; padding:0; margin:5px 0; }
 
+    /* Abbreviated so all three chips share one row. A dropdown would be smaller
+       still, but it would show only the selected document — and the whole value of
+       this row is reading 37 / 21 / 1 against each other. */
     .spot { gap:6px; }
     .spot .lbl { flex-basis:100%; }
-    .spot button { min-height:40px; }
+    .spot .wide { display:none; }
+    .spot .narrow { display:inline; }
+    .spot button { min-height:40px; padding:5px 11px; }
     .spot .hint { display:none; }
 
     /* a cursor-following tooltip is meaningless on touch: dock it as a sheet */
@@ -398,6 +424,10 @@
   </header>
 
   <div class="controls">
+    <button class="ptoggle" id="ptoggle" type="button" aria-expanded="false" aria-controls="pickers">
+      <span>Documents held</span><span class="psum" id="psum"></span>
+    </button>
+
     <div class="pickers" id="pickers">
       <span>Documents held:</span>
       <label><input type="checkbox" id="use-US" checked> U.S. passport</label>
@@ -497,11 +527,13 @@
   const DATA  = JSON.parse(document.getElementById("visa").textContent);
   const C = DATA.countries;
 
+  // `s` is the spotlight chip's narrow-screen label — the three chips have to share
+  // one row, or they wrap and the counts stop being comparable at a glance
   const DOCS = [
-    { k: "US", label: "U.S. passport" },
-    { k: "RU", label: "Russian passport" },
-    { k: "LP", label: "Israeli laissez-passer" },
-    { k: "IL", label: "Israeli passport (darkon)" }
+    { k: "US", label: "U.S. passport",             s: "U.S." },
+    { k: "RU", label: "Russian passport",          s: "Russian" },
+    { k: "LP", label: "Israeli laissez-passer",    s: "Laissez-passer" },
+    { k: "IL", label: "Israeli passport (darkon)", s: "Darkon" }
   ];
   const CATS = [
     { k: "visa_free",     t: "Visa not required" },
@@ -756,11 +788,17 @@
     const sel = selected();
     const box = document.getElementById("spotlight");
     if (sel.length < 2) { box.innerHTML = ""; return; }
-    box.innerHTML = '<span class="lbl">Show where only one document helps:</span>' +
+    box.innerHTML = '<span class="lbl"><span class="wide">Show where only one document ' +
+      'helps:</span><span class="narrow">Only one document helps:</span></span>' +
       sel.map(k => {
         const d = DOCS.find(x => x.k === k);
-        return '<button type="button" data-k="' + k + '" aria-pressed="' + (focusDoc === k) + '">' +
-               esc(d.label) + ' <span class="n">' + only[k].size + "</span></button>";
+        // the chip abbreviates when it has to, so aria-label carries the full name
+        return '<button type="button" data-k="' + k + '" aria-pressed="' + (focusDoc === k) + '"' +
+               ' aria-label="' + esc(d.label) + ", " + only[k].size +
+               (only[k].size === 1 ? " destination" : " destinations") + '">' +
+               '<span class="wide">' + esc(d.label) + "</span>" +
+               '<span class="narrow">' + esc(d.s) + "</span>" +
+               ' <span class="n">' + only[k].size + "</span></button>";
       }).join("") +
       (focusDoc ? '<span class="hint">— everything else dimmed; click again to clear</span>' : "");
   }
@@ -806,6 +844,10 @@
            .attr("stroke-width", d => dotW(d.id));
     overlay.attr("display", f => isInferred(f.properties.name) && lit(f.properties.name) ? null : "none");
 
+    // the collapsed picker has to say what it is hiding
+    document.getElementById("psum").textContent =
+      sel.map(k => DOCS.find(d => d.k === k).s).join(" · ") || "none";
+
     renderLegend(); renderSpotlight(only); renderTable();
     if (pinned) show(pinned);
   }
@@ -821,6 +863,10 @@
   document.querySelectorAll('input[name="ildoc"]').forEach(r => r.addEventListener("change", e => {
     ilDoc = e.target.value; paint();
   }));
+  // collapsed-picker disclosure; inert above 680px, where the row sits inline
+  const pickersBox = document.getElementById("pickers"), ptoggle = document.getElementById("ptoggle");
+  ptoggle.addEventListener("click", () =>
+    ptoggle.setAttribute("aria-expanded", String(pickersBox.classList.toggle("open"))));
   document.querySelectorAll("#view button").forEach(b => b.addEventListener("click", () => {
     document.querySelectorAll("#view button").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
     const t = b.dataset.v === "table";
